@@ -57,7 +57,7 @@
 
 - (NSString *)accessibilityLabel
 {
-    return @"test label";
+    return @"Square";
 }
 
 @end
