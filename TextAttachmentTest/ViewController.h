@@ -10,6 +10,8 @@
 
 @interface AccessibleTextView : NSTextView
 
+@property (strong) NSMutableDictionary *attachmentProxies;
+
 @end
 
 @interface ViewController : NSViewController

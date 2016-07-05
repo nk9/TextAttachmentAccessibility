@@ -85,12 +85,23 @@
 
 @implementation AccessibleTextView
 
+- (id)accessibilityAttributeValue:(NSString *)attribute
+{
+    if ([attribute isEqualToString:NSAccessibilityChildrenAttribute])
+    {
+        if (self.attachmentProxies.count > 0)
+        {
+            return [self.attachmentProxies allValues];
+        }
+    }
+    
+    return [super accessibilityAttributeValue:attribute];
+}
+
 - (id)accessibilityAttributeValue:(NSString *)attribute forParameter:(id)parameter
 {
     if ([attribute isEqualToString:NSAccessibilityAttributedStringForRangeParameterizedAttribute])
     {
-        NSRange stringRange = [(NSValue *)parameter rangeValue];
-
         NSMutableAttributedString *outAttString = [super accessibilityAttributeValue:attribute forParameter:parameter];
         NSAttributedString *selfAttString = [self attributedString];
 
@@ -105,12 +116,20 @@
                                        proxy.window = self.window;
                                        proxy.parent = self;
 
-                                       proxy.frame = [self.layoutManager lineFragmentUsedRectForGlyphAtIndex:linkRange.location effectiveRange:NULL withoutAdditionalLayout:NO];
+                                       NSRect glyphRect = [self rectForCharacterAtIndex:linkRange.location];
+                                       NSRect windowCoord = [self convertRect:glyphRect toView:nil];
+                                       NSRect screenCoord = [self.window convertRectToScreen:windowCoord];
+                                       
+                                       proxy.frame = screenCoord;
 
                                        if (proxy)
                                        {
-                                           [outAttString removeAttribute:NSAccessibilityAttachmentTextAttribute range:stringRange];
-                                           [outAttString addAttribute:NSAccessibilityAttachmentTextAttribute value:proxy range:stringRange];
+                                           if (!self.attachmentProxies)
+                                               self.attachmentProxies = [NSMutableDictionary dictionary];
+                                           
+                                           self.attachmentProxies[[NSValue valueWithRange:linkRange]] = proxy;
+                                           [outAttString removeAttribute:NSAccessibilityAttachmentTextAttribute range:linkRange];
+                                           [outAttString addAttribute:NSAccessibilityAttachmentTextAttribute value:proxy range:linkRange];
                                        }
                                    }
                                }];
@@ -119,5 +138,17 @@
     
     return [super accessibilityAttributeValue:attribute forParameter:parameter];
 }
+
+- (NSRect)rectForCharacterAtIndex:(NSUInteger)characterIndex
+{
+    NSUInteger rectCount = 0;
+    NSRange glyphRange = [self.layoutManager glyphRangeForCharacterRange:NSMakeRange(characterIndex, 1) actualCharacterRange:nil];
+    NSRectArray rectArray = [self.layoutManager rectArrayForGlyphRange:glyphRange
+                                         withinSelectedGlyphRange:NSMakeRange(NSNotFound, 0)
+                                                  inTextContainer:self.textContainer
+                                                        rectCount:&rectCount];
+    return rectCount ? rectArray[0] : NSZeroRect;
+}
+
 
 @end
